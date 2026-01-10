@@ -1,0 +1,176 @@
+
+-- =====================
+-- SCHEMA
+-- =====================
+CREATE SCHEMA IF NOT EXISTS public;
+ALTER SCHEMA public OWNER TO postgres;
+
+-- =====================
+-- TYPES
+-- =====================
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE public.user_role AS ENUM (
+            'ADMIN', 'USER', 'TEACHER', 'HR', 'OPERATION'
+        );
+    END IF;
+END$$;
+
+-- =====================
+-- TABLES
+-- =====================
+CREATE TABLE IF NOT EXISTS public.attendance (
+    id integer NOT NULL,
+    student_id integer,
+    class_id integer,
+    date date NOT NULL,
+    status character varying(10),
+    created_at timestamp DEFAULT now(),
+    CONSTRAINT attendance_status_check CHECK (status IN ('Present','Absent')),
+    CONSTRAINT attendance_pkey PRIMARY KEY (id),
+    CONSTRAINT attendance_student_id_date_key UNIQUE (student_id, date),
+    CONSTRAINT attendance_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+    CONSTRAINT attendance_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS public.classes (
+    id integer NOT NULL,
+    name character varying(50) NOT NULL,
+    teacher_id integer,
+    created_at timestamp DEFAULT now(),
+    CONSTRAINT classes_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS public.employee (
+    user_id integer NOT NULL,
+    salary numeric(10,2) NOT NULL,
+    department character varying(50),
+    CONSTRAINT employee_pkey PRIMARY KEY (user_id),
+    CONSTRAINT employee_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS public.employees (
+    emp_id integer NOT NULL,
+    emp_name character varying(100) NOT NULL,
+    salary numeric(10,2) NOT NULL,
+    department character varying(50) NOT NULL,
+    hire_date date NOT NULL,
+    CONSTRAINT employees_pkey PRIMARY KEY (emp_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.expenses (
+    id integer NOT NULL,
+    description text NOT NULL,
+    amount numeric(10,2) NOT NULL,
+    expense_date date,
+    created_at timestamp DEFAULT now(),
+    CONSTRAINT expenses_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS public.leaves (
+    id integer NOT NULL,
+    user_id integer,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    status character varying(20) DEFAULT 'Pending',
+    reason text,
+    created_at timestamp DEFAULT now(),
+    CONSTRAINT leaves_status_check CHECK (status IN ('Pending','Approved','Rejected')),
+    CONSTRAINT leaves_pkey PRIMARY KEY (id),
+    CONSTRAINT leaves_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS public.notes (
+    id integer NOT NULL,
+    student_id integer,
+    teacher_id integer,
+    note text,
+    behavior character varying(50),
+    created_at timestamp DEFAULT now(),
+    CONSTRAINT notes_pkey PRIMARY KEY (id),
+    CONSTRAINT notes_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE,
+    CONSTRAINT notes_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS public.payments (
+    id integer NOT NULL,
+    student_id integer,
+    amount numeric(10,2) NOT NULL,
+    payment_date date,
+    status character varying(20),
+    created_at timestamp DEFAULT now(),
+    CONSTRAINT payments_status_check CHECK (status IN ('Paid','Unpaid')),
+    CONSTRAINT payments_pkey PRIMARY KEY (id),
+    CONSTRAINT payments_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id)
+);
+
+CREATE TABLE IF NOT EXISTS public.payroll (
+    id integer NOT NULL,
+    user_id integer,
+    amount numeric(10,2) NOT NULL,
+    payment_date date,
+    created_at timestamp DEFAULT now(),
+    CONSTRAINT payroll_pkey PRIMARY KEY (id),
+    CONSTRAINT payroll_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS public.roles (
+    id integer NOT NULL,
+    name character varying(30) NOT NULL,
+    created_at timestamp DEFAULT now(),
+    CONSTRAINT roles_pkey PRIMARY KEY (id),
+    CONSTRAINT roles_name_key UNIQUE(name)
+);
+
+CREATE TABLE IF NOT EXISTS public.students (
+    id integer NOT NULL,
+    full_name character varying(100) NOT NULL,
+    class_id integer,
+    created_at timestamp DEFAULT now(),
+    student_parent integer,
+    isactive boolean DEFAULT true,
+    CONSTRAINT students_pkey PRIMARY KEY (id),
+    CONSTRAINT students_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+    CONSTRAINT fk_student_parent FOREIGN KEY (student_parent) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS public.users (
+    id integer NOT NULL,
+    username character varying(50) NOT NULL,
+    password text NOT NULL,
+    email character varying(100),
+    is_active boolean DEFAULT true,
+    created_at timestamp DEFAULT now(),
+    phone character varying(20) NOT NULL,
+    address character varying(20),
+    role public.user_role DEFAULT 'USER' NOT NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (id),
+    CONSTRAINT unique_user_phone UNIQUE (phone),
+    CONSTRAINT uq_users_email UNIQUE(email),
+    CONSTRAINT users_email_key UNIQUE(email)
+);
+
+-- =====================
+-- INSERT DATA
+-- =====================
+
+-- classes
+INSERT INTO public.classes (id,name,teacher_id,created_at) VALUES
+(4,'panda',4,'2026-01-10 06:08:00.435337');
+
+-- employees
+INSERT INTO public.employees (emp_id,emp_name,salary,department,hire_date) VALUES
+(1,'Ahmed Ali',8000.00,'IT','2022-01-15'),
+(2,'Mohamed Samy',7000.00,'IT','2021-06-20'),
+(3,'Sara Hassan',6000.00,'HR','2020-03-10'),
+(4,'Mona Adel',6500.00,'HR','2019-11-05'),
+(5,'Omar Youssef',9000.00,'FINANCE','2018-07-01');
+
+-- students
+INSERT INTO public.students (id,full_name,class_id,created_at,student_parent,isactive) VALUES
+(6,'ziad',4,'2026-01-10 06:08:34.300935',1,true);
+
+-- users
+INSERT INTO public.users (id,username,password,email,is_active,created_at,phone,address,role) VALUES
+(1,'ziad','12345678','zyad@gmail.com',true,'2026-01-10 05:57:59.361722','01029077753','hw','ADMIN');
